@@ -6,8 +6,8 @@ from collections import Counter
 
 import pytest
 
-from ddi_metadata import DatasetMetadata
 from nesstar_reader.binary import ParsedNesstarBinary, decode_variable_values_hint
+from tests.ddi_metadata import DatasetMetadata
 
 
 def test_decoded_categorical_frequencies_match_xml(

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from ddi_metadata import DatasetMetadata
 from nesstar_reader.binary import ParsedNesstarBinary, decode_variable_values_hint
+from tests.ddi_metadata import DatasetMetadata
 
 
 def test_all_decoded_compact_numeric_variables_match_xml_summary_stats(

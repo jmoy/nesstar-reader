@@ -12,7 +12,7 @@ from nesstar_reader.binary import (
     parse_embedded_dataset_metadata,
     parse_nesstar_binary,
 )
-from ddi_metadata import DatasetMetadata, parse_ddi_xml
+from tests.ddi_metadata import DatasetMetadata, parse_ddi_xml
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

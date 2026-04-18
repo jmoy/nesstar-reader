@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from ddi_metadata import DatasetMetadata
 from nesstar_reader.binary import ParsedEmbeddedMetadata
+from tests.ddi_metadata import DatasetMetadata
 
 
 def _normalize_text(value: str) -> str:

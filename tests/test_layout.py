@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from types import SimpleNamespace
 
-from ddi_metadata import DatasetMetadata
 from nesstar_reader.binary import DatasetDescriptor, ParsedNesstarBinary
+from tests.ddi_metadata import DatasetMetadata
 
 
 def test_parser_produces_correct_dataset_count(
