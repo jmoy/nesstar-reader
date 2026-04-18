@@ -1,3 +1,5 @@
+"""Tests comparing embedded NESSTAR metadata with external DDI XML."""
+
 from __future__ import annotations
 
 import pytest
@@ -7,6 +9,7 @@ from nesstar_reader.binary import ParsedEmbeddedMetadata
 
 
 def _normalize_text(value: str) -> str:
+    """Collapse whitespace for cross-source metadata comparisons."""
     return " ".join(value.split())
 
 
@@ -14,6 +17,7 @@ def test_embedded_title_matches_external_xml(
     embedded_metadata: ParsedEmbeddedMetadata,
     parsed_metadata: DatasetMetadata | None,
 ) -> None:
+    """Compare embedded title and document id with DDI XML."""
     if parsed_metadata is None:
         pytest.skip("XML metadata not provided")
     assert embedded_metadata.title == parsed_metadata.title
@@ -24,6 +28,7 @@ def test_dataset_file_names_and_dimensions_match_external_xml(
     embedded_metadata: ParsedEmbeddedMetadata,
     parsed_metadata: DatasetMetadata | None,
 ) -> None:
+    """Compare embedded dataset names and dimensions with DDI XML."""
     if parsed_metadata is None:
         pytest.skip("XML metadata not provided")
     for dataset in embedded_metadata.datasets:
@@ -39,6 +44,7 @@ def test_embedded_labels_widths_and_categories_match_external_xml(
     embedded_metadata: ParsedEmbeddedMetadata,
     parsed_metadata: DatasetMetadata | None,
 ) -> None:
+    """Compare embedded variable labels, widths, and categories with DDI XML."""
     if parsed_metadata is None:
         pytest.skip("XML metadata not provided")
     for dataset in embedded_metadata.datasets:

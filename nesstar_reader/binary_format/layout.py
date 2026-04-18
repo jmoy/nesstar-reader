@@ -16,6 +16,7 @@ def discover_trailing_metadata_bounds(
     data: bytes,
     datasets: list[DatasetDescriptor],
 ) -> tuple[int | None, int | None]:
+    """Return the byte range between dataset directories and resource index."""
     start_offset: int | None = None
     if datasets:
         last = datasets[-1]
@@ -29,6 +30,7 @@ def discover_trailing_metadata_bounds(
 
 
 def parse_nesstar_binary(path: str | Path) -> ParsedNesstarBinary:
+    """Parse the binary container layout and resolve all variable payload spans."""
     file_path = Path(path)
     data = file_path.read_bytes()
 

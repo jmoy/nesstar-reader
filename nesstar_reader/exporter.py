@@ -20,16 +20,19 @@ DEFAULT_CHUNK_SIZE = 10_000
 
 
 def _sanitize_filename_part(value: str) -> str:
+    """Return a conservative fallback filename component."""
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip())
     return cleaned.strip("._") or "dataset"
 
 
 def _decode_nul_terminated_byte_string(raw: bytes) -> bytes:
+    """Trim a fixed-width mode-1 byte-string cell at its first NUL byte."""
     # Mode 1 stores byte strings in fixed-size slots and terminates them with NUL.
     return raw.split(b"\x00", 1)[0]
 
 
 def _format_output_value(value: RowValue) -> bytes:
+    """Format one row value for the binary TSV writer path."""
     if value is None:
         return b""
     if isinstance(value, bytes):
@@ -40,6 +43,7 @@ def _format_output_value(value: RowValue) -> bytes:
 
 
 def _format_output_text(value: RowValue) -> str:
+    """Format one row value for the text-mode CSV writer path."""
     if value is None:
         return ""
     if isinstance(value, bytes):
@@ -50,6 +54,7 @@ def _format_output_text(value: RowValue) -> str:
 
 
 def _normalize_category_value(value: object) -> object:
+    """Normalize category ids so XML labels match decoded numeric values."""
     if isinstance(value, int):
         return value
     if isinstance(value, float):
@@ -70,6 +75,7 @@ def _normalize_category_value(value: object) -> object:
 
 
 def _build_category_label_map(categories: list[object]) -> dict[object, bytes]:
+    """Build a normalized code-to-label map for optional label substitution."""
     mapping: dict[object, bytes] = {}
     for category in categories:
         key = _normalize_category_value(category.value)
@@ -82,7 +88,9 @@ def _build_nul_terminated_byte_string_chunk_reader(
     start: int,
     width: int,
 ) -> ChunkReader:
+    """Create a reader for fixed-width NUL-terminated string cells."""
     def reader(row_start: int, row_count: int) -> list[RowValue]:
+        """Read a contiguous row window for one mode-1 variable."""
         values: list[RowValue] = []
         offset = start + row_start * width
         end = offset + row_count * width
@@ -100,11 +108,19 @@ def _build_compact_chunk_reader(
     *,
     category_label_map: dict[object, bytes] | None = None,
 ) -> ChunkReader:
+    """Create a streaming reader for one compact binary numeric variable.
+
+    The returned callable decodes only the requested row window. It applies the
+    same missing-value sentinel and additive-offset semantics as the eager
+    compact decoder, and may replace decoded category codes with UTF-8 labels
+    when the caller supplies a category map.
+    """
     family = variable.value_family
     additive_offset = variable.additive_offset
     missing_value_code = variable.missing_value_code
 
     def apply(value: int | float) -> RowValue:
+        """Apply missing-sentinel and additive-offset semantics to one value."""
         if missing_value_code is not None and value == missing_value_code:
             return None
         if additive_offset is not None:
@@ -112,12 +128,14 @@ def _build_compact_chunk_reader(
         return value
 
     def maybe_replace_label(value: RowValue) -> RowValue:
+        """Replace a decoded category code with its label when configured."""
         if value is None or category_label_map is None:
             return value
         return category_label_map.get(_normalize_category_value(value), value)
 
     if family == "nibble-packed":
         def reader(row_start: int, row_count: int) -> list[RowValue]:
+            """Read a nibble-packed row window using high nibble for even rows."""
             values: list[RowValue] = []
             row_end = row_start + row_count
             for row_index in range(row_start, row_end):
@@ -130,6 +148,7 @@ def _build_compact_chunk_reader(
 
     if family == "byte-coded":
         def reader(row_start: int, row_count: int) -> list[RowValue]:
+            """Read a one-byte-per-row compact numeric window."""
             chunk = data[start + row_start : start + row_start + row_count]
             return [maybe_replace_label(apply(value)) for value in chunk]
 
@@ -148,6 +167,7 @@ def _build_compact_chunk_reader(
 
     if step:
         def reader(row_start: int, row_count: int) -> list[RowValue]:
+            """Read a fixed-width little-endian integer compact window."""
             values: list[RowValue] = []
             offset = start + row_start * step
             end = offset + row_count * step
@@ -159,6 +179,7 @@ def _build_compact_chunk_reader(
 
     if family == "float64":
         def reader(row_start: int, row_count: int) -> list[RowValue]:
+            """Read a little-endian float64 compact numeric window."""
             values: list[RowValue] = []
             offset = start + row_start * 8
             end = offset + row_count * 8
@@ -172,6 +193,7 @@ def _build_compact_chunk_reader(
 
 
 def _dataset_output_stem(base: Path, dataset_number: int, file_name: str) -> Path:
+    """Choose the output stem for one dataset while stripping path components."""
     safe_name = re.split(r"[\\/]+", file_name.strip())[-1] if file_name else ""
     if safe_name not in {"", ".", ".."}:
         return base.parent / safe_name
@@ -179,10 +201,12 @@ def _dataset_output_stem(base: Path, dataset_number: int, file_name: str) -> Pat
 
 
 def _append_suffix(path: Path, suffix: str) -> Path:
+    """Append a suffix without treating dots in the stem as file extensions."""
     return path.parent / f"{path.name}{suffix}"
 
 
 def _ordered_variable_names(dataset: Any, embedded_dataset: Any | None) -> list[str]:
+    """Return export variable order, preferring embedded metadata order."""
     declared_names = [
         variable.variable_name
         for variable in (embedded_dataset.variables if embedded_dataset is not None else [])
@@ -199,6 +223,7 @@ def _build_dataset_metadata_json(
     embedded_dataset: Any | None,
     nesstar_path: Path,
 ) -> dict[str, Any]:
+    """Build the JSON-serializable metadata sidecar for one exported dataset."""
     embedded_vars = {
         var.variable_name: var
         for var in (embedded_dataset.variables if embedded_dataset is not None else [])
@@ -262,6 +287,7 @@ def _dataset_chunk_plan(
     embedded_dataset: Any | None = None,
     use_category_labels: bool = False,
 ) -> tuple[list[str], list[ChunkReader]]:
+    """Build headers and per-column readers for streaming dataset export."""
     offsets = dataset.variable_offsets_hint()
     if offsets is None:
         raise ValueError(f"Could not determine variable offsets for dataset {dataset.dataset_number}")
@@ -321,6 +347,12 @@ def _write_dataset_csv(
     include_header: bool = True,
     use_category_labels: bool = False,
 ) -> None:
+    """Write one dataset to CSV or TSV, optionally gzip-compressed.
+
+    CSV output uses Python's text-mode ``csv`` module so quoting and embedded
+    line breaks are handled correctly. TSV output uses the binary path to
+    preserve byte-oriented values and gzip behavior while writing CRLF rows.
+    """
     headers, readers = _dataset_chunk_plan(
         data,
         dataset,

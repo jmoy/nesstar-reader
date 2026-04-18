@@ -1,3 +1,5 @@
+"""Tests that decoded compact categories match external DDI frequencies."""
+
 from __future__ import annotations
 
 from collections import Counter

@@ -16,6 +16,8 @@ NS = {"ddi": DDI_NS}
 
 @dataclass
 class Category:
+    """One categorical value, label, and frequency from DDI XML."""
+
     value: str
     label: str
     frequency: int
@@ -23,6 +25,8 @@ class Category:
 
 @dataclass
 class SummaryStats:
+    """Summary statistics attached to a DDI variable."""
+
     valid_count: int = 0
     invalid_count: int = 0
     min: float | None = None
@@ -33,6 +37,8 @@ class SummaryStats:
 
 @dataclass
 class Variable:
+    """Variable-level metadata parsed from a DDI ``var`` element."""
+
     id: str
     name: str
     file_id: str
@@ -47,6 +53,8 @@ class Variable:
 
 @dataclass
 class FileDescription:
+    """File-level metadata parsed from a DDI ``fileDscr`` element."""
+
     id: str
     name: str
     record_count: int
@@ -58,18 +66,22 @@ class FileDescription:
 
 @dataclass
 class DatasetMetadata:
+    """Top-level DDI metadata used by integration tests."""
+
     title: str
     id: str
     files: dict[str, FileDescription] = field(default_factory=dict)
 
 
 def _text(element: ET.Element | None) -> str:
+    """Return stripped element text, or an empty string when absent."""
     if element is None or element.text is None:
         return ""
     return element.text.strip()
 
 
 def _float_or_none(value: str) -> float | None:
+    """Parse a floating-point value while preserving missing values as ``None``."""
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -77,6 +89,7 @@ def _float_or_none(value: str) -> float | None:
 
 
 def _parse_variable(var_el: ET.Element) -> Variable:
+    """Parse one DDI variable element including stats and categories."""
     variable_id = var_el.get("ID", "")
     name = var_el.get("name", "")
     file_id = var_el.get("files", "")
@@ -130,6 +143,7 @@ def _parse_variable(var_el: ET.Element) -> Variable:
 
 
 def _parse_file_index(uri: str) -> int:
+    """Extract the NESSTAR file index query parameter from a DDI URI."""
     normalized = uri.replace("&amp;", "&")
     for part in normalized.replace("?", "&").split("&"):
         if part.startswith("Index="):
@@ -138,6 +152,7 @@ def _parse_file_index(uri: str) -> int:
 
 
 def parse_ddi_xml(path: str | Path) -> DatasetMetadata:
+    """Parse the subset of DDI XML needed to validate NESSTAR extraction."""
     tree = ET.parse(path)
     root = tree.getroot()
 

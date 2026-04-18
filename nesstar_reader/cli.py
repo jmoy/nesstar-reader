@@ -10,6 +10,7 @@ from .exporter import export_nesstar_to_csv_and_json
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Create the command-line parser for dataset extraction."""
     parser = argparse.ArgumentParser(
         prog="nesstar-reader",
         description="Extract datasets from a .Nesstar container into CSV plus JSON metadata.",
@@ -48,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the CLI and print paths for the files written per dataset."""
     parser = build_parser()
     args = parser.parse_args(argv)
 

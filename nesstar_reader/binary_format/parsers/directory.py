@@ -7,6 +7,7 @@ from ..utils import decode_directory_name, is_plausible_variable_name, u32le
 
 
 def parse_directory_entry(entry: bytes) -> VariableDirectoryEntry:
+    """Parse one fixed-width variable-directory entry."""
     return VariableDirectoryEntry(
         entry_index=u32le(entry, 0),
         name=decode_directory_name(entry),
@@ -29,6 +30,14 @@ def validate_directory(
     *,
     expected_first_variable_id: int | None = None,
 ) -> list[VariableDirectoryEntry] | None:
+    """Parse and sanity-check a variable directory table.
+
+    Validation mirrors the recovered format invariants: entries and variable
+    resource ids must be consecutive, the first variable id may be checked
+    against the descriptor-derived value, and the UTF-16LE name field must look
+    like a plausible identifier. ``None`` signals that the candidate table does
+    not match those invariants.
+    """
     if offset < 0 or offset >= len(data):
         return None
     if entry_size < 160:

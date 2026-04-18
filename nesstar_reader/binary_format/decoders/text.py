@@ -10,6 +10,7 @@ def decode_text_resource(
     trailing_resource_index: dict[int, TrailingResourceIndexRecord],
     record_id: int,
 ) -> str:
+    """Resolve and decode a trailing plain-text resource by record id."""
     if record_id == 0:
         return ""
     record = trailing_resource_index.get(record_id)

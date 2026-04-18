@@ -1,3 +1,5 @@
+"""Tests for CSV/TSV export helpers and dataset sidecar behavior."""
+
 from __future__ import annotations
 
 import csv
@@ -17,6 +19,7 @@ from nesstar_reader.exporter import (
 
 
 def test_ordered_variable_names_follow_embedded_metadata() -> None:
+    """Prefer embedded metadata order while retaining remaining variables."""
     dataset = SimpleNamespace(
         variables=[
             SimpleNamespace(name="c"),
@@ -35,6 +38,7 @@ def test_ordered_variable_names_follow_embedded_metadata() -> None:
 
 
 def test_nul_terminated_byte_string_chunk_reader_can_preserve_textual_numeric_formatting() -> None:
+    """Keep leading zeroes in direct string cells."""
     reader = _build_nul_terminated_byte_string_chunk_reader(
         b"030712",
         0,
@@ -45,6 +49,7 @@ def test_nul_terminated_byte_string_chunk_reader_can_preserve_textual_numeric_fo
 
 
 def test_nul_terminated_byte_string_chunk_reader_preserves_spaces_before_terminator() -> None:
+    """Keep spaces that appear before the NUL terminator."""
     reader = _build_nul_terminated_byte_string_chunk_reader(
         b"A \x00B  ",
         0,
@@ -55,6 +60,7 @@ def test_nul_terminated_byte_string_chunk_reader_preserves_spaces_before_termina
 
 
 def test_nul_terminated_byte_string_chunk_reader_treats_all_nul_cells_as_empty() -> None:
+    """Decode an all-NUL fixed-width cell as an empty byte string."""
     reader = _build_nul_terminated_byte_string_chunk_reader(
         b"\x00\x00\x00ABC",
         0,
@@ -65,6 +71,7 @@ def test_nul_terminated_byte_string_chunk_reader_treats_all_nul_cells_as_empty()
 
 
 def test_nul_terminated_byte_string_chunk_reader_stops_at_first_nul() -> None:
+    """Ignore bytes after the first NUL in a fixed-width cell."""
     reader = _build_nul_terminated_byte_string_chunk_reader(
         b"7\x008\x00",
         0,
@@ -75,24 +82,28 @@ def test_nul_terminated_byte_string_chunk_reader_stops_at_first_nul() -> None:
 
 
 def test_dataset_output_stem_uses_embedded_file_name_verbatim(tmp_path: Path) -> None:
+    """Use a normal embedded file name directly as the output stem."""
     stem = _dataset_output_stem(tmp_path / "input_stem", 3, "LEVEL - 01(Section 1 and 1.1)")
 
     assert stem == tmp_path / "LEVEL - 01(Section 1 and 1.1)"
 
 
 def test_dataset_output_stem_strips_embedded_path_components(tmp_path: Path) -> None:
+    """Strip path components from embedded file names before writing output."""
     assert _dataset_output_stem(tmp_path / "input_stem", 3, "../outside") == tmp_path / "outside"
     assert _dataset_output_stem(tmp_path / "input_stem", 3, "/tmp/outside") == tmp_path / "outside"
     assert _dataset_output_stem(tmp_path / "input_stem", 3, r"..\outside") == tmp_path / "outside"
 
 
 def test_append_suffix_preserves_embedded_dots_in_file_name(tmp_path: Path) -> None:
+    """Append output suffixes without treating stem dots as extensions."""
     path = tmp_path / "LEVEL - 01(Section 1 and 1.1)"
 
     assert _append_suffix(path, ".tsv") == tmp_path / "LEVEL - 01(Section 1 and 1.1).tsv"
 
 
 def test_write_dataset_csv_supports_gzip_output(tmp_path: Path) -> None:
+    """Write gzip-compressed TSV bytes with CRLF row endings."""
     dataset = SimpleNamespace(
         dataset_number=1,
         row_count=2,
@@ -116,6 +127,7 @@ def test_write_dataset_csv_supports_gzip_output(tmp_path: Path) -> None:
 
 
 def test_write_dataset_csv_escapes_comma_delimited_fields(tmp_path: Path) -> None:
+    """Delegate comma-delimited escaping and quoting to the CSV writer."""
     dataset = SimpleNamespace(
         dataset_number=1,
         row_count=2,
@@ -145,6 +157,7 @@ def test_write_dataset_csv_escapes_comma_delimited_fields(tmp_path: Path) -> Non
 
 
 def test_category_label_map_normalizes_zero_padded_numeric_values() -> None:
+    """Match zero-padded XML category values to decoded integer codes."""
     categories = [
         SimpleNamespace(value="01", label="Jan"),
         SimpleNamespace(value="02", label="Feb"),
@@ -157,6 +170,7 @@ def test_category_label_map_normalizes_zero_padded_numeric_values() -> None:
 
 
 def test_compact_chunk_reader_can_replace_numeric_codes_with_category_labels() -> None:
+    """Replace compact numeric codes with labels when a label map is supplied."""
     variable = SimpleNamespace(
         value_family="byte-coded",
         additive_offset=None,

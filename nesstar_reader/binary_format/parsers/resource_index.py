@@ -8,6 +8,7 @@ from ..utils import u32le
 
 
 def parse_trailing_resource_index(data: bytes) -> dict[int, TrailingResourceIndexRecord]:
+    """Parse the resource-index table pointed to by the NESSTAR header."""
     offset = u32le(data, HEADER_RESOURCE_INDEX_OFFSET)
     records_offset = offset + 4
     if records_offset + TRAILING_RESOURCE_INDEX_RECORD_SIZE > len(data):

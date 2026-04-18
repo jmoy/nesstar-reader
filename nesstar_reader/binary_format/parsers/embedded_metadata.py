@@ -28,14 +28,17 @@ from .resource_index import parse_trailing_resource_index
 
 
 def xml_root(block: EmbeddedMetadataBlock) -> ET.Element:
+    """Parse a decoded embedded XML block and return its root element."""
     return ET.fromstring(block.decoded_xml)
 
 
 def xml_bool(value: str | None) -> bool:
+    """Interpret NESSTAR XML boolean attributes, which use ``TRUE`` strings."""
     return (value or "").upper() == "TRUE"
 
 
 def parse_embedded_categories(block: EmbeddedMetadataBlock) -> list[EmbeddedCategory]:
+    """Parse a ``Categories`` XML block into value-label pairs."""
     root = xml_root(block)
     if root.tag != "Categories":
         raise NesstarBinaryFormatError(f"Expected <Categories> block at {block.offset:#x}")
@@ -46,6 +49,7 @@ def parse_embedded_categories(block: EmbeddedMetadataBlock) -> list[EmbeddedCate
 
 
 def parse_embedded_stat_options(block: EmbeddedMetadataBlock) -> EmbeddedStatOptions:
+    """Parse summary-stat availability flags from an ``ExtVarInf`` block."""
     root = xml_root(block)
     if root.tag != "ExtVarInf":
         raise NesstarBinaryFormatError(f"Expected <ExtVarInf> block at {block.offset:#x}")
@@ -63,6 +67,7 @@ def parse_embedded_stat_options(block: EmbeddedMetadataBlock) -> EmbeddedStatOpt
 
 
 def parse_embedded_file_description_name(block: EmbeddedMetadataBlock) -> str:
+    """Return the ``FileName`` text from a dataset ``FileDesc`` block."""
     root = xml_root(block)
     if root.tag != "FileDesc":
         raise NesstarBinaryFormatError(f"Expected <FileDesc> block at {block.offset:#x}")
@@ -73,6 +78,7 @@ def parse_embedded_file_description_name(block: EmbeddedMetadataBlock) -> str:
 
 
 def parse_embedded_title_and_id(block: EmbeddedMetadataBlock) -> tuple[str, str]:
+    """Return title and document id attributes from a header metadata block."""
     root = xml_root(block)
     title_stmt = root.find("./Citation/TitleStmt")
     if title_stmt is None:
@@ -81,6 +87,7 @@ def parse_embedded_title_and_id(block: EmbeddedMetadataBlock) -> tuple[str, str]
 
 
 def parse_embedded_template_manifest(data: bytes, offset: int, length: int) -> list[EmbeddedTemplateReference]:
+    """Parse the binary template manifest addressed by header field ``0x4F``."""
     if length < 2:
         raise NesstarBinaryFormatError(f"Template manifest at {offset:#x} is truncated")
     count = int.from_bytes(data[offset : offset + 2], "little")
@@ -105,6 +112,7 @@ def parse_plain_xml_template_documents(
     manifest: list[EmbeddedTemplateReference],
     trailing_resource_index: dict[int, object],
 ) -> list[EmbeddedTemplateDocument]:
+    """Resolve manifest entries into decoded plain XML template documents."""
     documents: list[EmbeddedTemplateDocument] = []
     for entry in manifest:
         record = trailing_resource_index.get(entry.record_id)
@@ -131,6 +139,7 @@ def parse_plain_xml_template_documents(
 
 
 def decode_header_metadata_blocks(path: str | Path) -> list[EmbeddedMetadataBlock]:
+    """Decode the two top-level metadata blocks with leading dataset bytes."""
     data = Path(path).read_bytes()
     resource_index = parse_trailing_resource_index(data)
     rec1 = resource_index.get(HEADER_METADATA_BLOCK_1_RECORD_ID)
@@ -149,6 +158,13 @@ def scan_trailing_metadata_blocks(
     start_offset: int | None = None,
     end_offset: int | None = None,
 ) -> list[EmbeddedMetadataBlock]:
+    """Scan a byte range for embedded XML blocks not reached by record id.
+
+    This is intentionally heuristic: it walks byte-by-byte through the region
+    between the parsed datasets and the trailing resource index, keeps only
+    blocks that decode to XML declarations, and records any printable ASCII
+    prefix immediately before a block as a label hint.
+    """
     from ..layout import parse_nesstar_binary
 
     parsed = parse_nesstar_binary(path)
@@ -183,6 +199,7 @@ def decode_indexed_metadata_block(
     trailing_resource_index: dict[int, object],
     record_id: int,
 ) -> EmbeddedMetadataBlock | None:
+    """Decode an indexed XML metadata resource, returning ``None`` on misses."""
     record = trailing_resource_index.get(record_id)
     if record is None:
         return None
@@ -196,6 +213,13 @@ def decode_indexed_metadata_block(
 
 
 def parse_embedded_dataset_metadata(path: str | Path) -> ParsedEmbeddedMetadata:
+    """Build the resolved embedded metadata model for a NESSTAR container.
+
+    The binary layout parser supplies dataset descriptors and variable resource
+    ids. This function then follows those ids through the trailing index to
+    attach FileDesc, ExtVarInf, Categories, label text, and template resources
+    into a metadata view suitable for exporters and tests.
+    """
     from ..layout import parse_nesstar_binary
 
     parsed = parse_nesstar_binary(path)

@@ -8,6 +8,7 @@ from ..utils import u16le, u32le
 
 
 def parse_descriptors(data: bytes, descriptor_table_offset: int) -> list[DatasetDescriptor]:
+    """Parse the dataset descriptor table at the header-resolved offset."""
     count = data[HEADER_DATASET_COUNT]
     record_size = u16le(data, HEADER_DESCRIPTOR_RECORD_SIZE)
     if record_size < 26:
@@ -39,6 +40,7 @@ def discover_descriptor_section_offset(
     data: bytes,
     trailing_resource_index: dict[int, TrailingResourceIndexRecord],
 ) -> int:
+    """Resolve the dataset descriptor table offset through the resource index."""
     base_id = u32le(data, HEADER_BASE_RECORD_ID)
     record = trailing_resource_index.get(base_id)
     if record is None:

@@ -1,3 +1,5 @@
+"""Tests for parsing dataset layout and variable payload offsets."""
+
 from __future__ import annotations
 
 import pytest
@@ -11,6 +13,7 @@ def test_parser_produces_correct_dataset_count(
     parsed_binary: ParsedNesstarBinary,
     parsed_metadata: DatasetMetadata | None,
 ) -> None:
+    """Compare parsed dataset count with external DDI metadata."""
     if parsed_metadata is None:
         pytest.skip("XML metadata not provided")
     assert len(parsed_binary.datasets) == len(parsed_metadata.files)
@@ -20,6 +23,7 @@ def test_variable_names_match_external_xml(
     parsed_binary: ParsedNesstarBinary,
     parsed_metadata: DatasetMetadata | None,
 ) -> None:
+    """Compare variable order and names with external DDI metadata."""
     if parsed_metadata is None:
         pytest.skip("XML metadata not provided")
     binary_names = [
@@ -36,6 +40,7 @@ def test_variable_names_match_external_xml(
 
 
 def test_variable_sizes_sum_to_data_region(parsed_binary: ParsedNesstarBinary) -> None:
+    """Check that per-variable payload sizes cover each dataset data region."""
     for dataset in parsed_binary.datasets:
         offsets = dataset.variable_offsets_hint()
         assert offsets is not None, f"dataset {dataset.dataset_number}"
@@ -45,6 +50,7 @@ def test_variable_sizes_sum_to_data_region(parsed_binary: ParsedNesstarBinary) -
 
 
 def test_variable_offsets_prefer_indexed_lengths_when_available() -> None:
+    """Confirm indexed resource lengths win over width-based reconstruction."""
     dataset = DatasetDescriptor(
         dataset_number=1,
         variable_count=2,

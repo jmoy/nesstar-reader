@@ -10,6 +10,8 @@ from ..types import EmbeddedMetadataBlock, NesstarBinaryFormatError
 
 @dataclass(slots=True)
 class HuffmanNode:
+    """Node in the static Huffman tree stored by embedded XML blocks."""
+
     weight: int
     symbol: int | None = None
     left: "HuffmanNode | None" = None
@@ -17,6 +19,12 @@ class HuffmanNode:
 
 
 def build_static_huffman_codes(symbol_counts: list[tuple[int, int]]) -> dict[int, str]:
+    """Build canonical tree-walk bit strings from ``(symbol, frequency)`` rows.
+
+    NESSTAR stores sorted symbol frequencies, not the final codes. The decoder
+    reconstructs the tree with the same stable tie-breaking used by the
+    recovered files, then assigns ``0`` to left edges and ``1`` to right edges.
+    """
     if not symbol_counts:
         raise NesstarBinaryFormatError("Embedded metadata block has an empty symbol table")
 
@@ -37,6 +45,7 @@ def build_static_huffman_codes(symbol_counts: list[tuple[int, int]]) -> dict[int
     codes: dict[int, str] = {}
 
     def visit(node: HuffmanNode, prefix: str = "") -> None:
+        """Populate ``codes`` by walking the reconstructed Huffman tree."""
         if node.symbol is not None:
             codes[node.symbol] = prefix or "0"
             return
@@ -49,6 +58,7 @@ def build_static_huffman_codes(symbol_counts: list[tuple[int, int]]) -> dict[int
 
 
 def decode_huffman_lsb_first(payload: bytes, codes: dict[int, str], output_length: int) -> tuple[bytes, int]:
+    """Decode payload bits in NESSTAR's least-significant-bit-first order."""
     reverse_codes = {bits: symbol for symbol, bits in codes.items()}
     decoded: list[int] = []
     current = ""
@@ -72,6 +82,13 @@ def decode_huffman_lsb_first(payload: bytes, codes: dict[int, str], output_lengt
 
 
 def decode_embedded_metadata_block(data: bytes, offset: int, *, has_dataset_index: bool = False) -> EmbeddedMetadataBlock:
+    """Decode one embedded static-Huffman XML metadata block.
+
+    Header metadata resources are indexed one byte after their true block start;
+    callers pass ``has_dataset_index=True`` with ``offset`` adjusted to include
+    that leading dataset-index byte. Other indexed XML resources begin directly
+    at their resource ``target_offset``.
+    """
     cursor = offset
     dataset_index: int | None = None
     if has_dataset_index:
@@ -114,4 +131,3 @@ def decode_embedded_metadata_block(data: bytes, offset: int, *, has_dataset_inde
         decoded_xml=decoded_xml,
         dataset_index=dataset_index,
     )
-

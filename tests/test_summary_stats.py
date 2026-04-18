@@ -1,3 +1,5 @@
+"""Tests comparing decoded compact numeric values with DDI summary stats."""
+
 from __future__ import annotations
 
 import pytest
@@ -11,6 +13,7 @@ def test_all_decoded_compact_numeric_variables_match_xml_summary_stats(
     parsed_metadata: DatasetMetadata | None,
     nesstar_bytes: bytes,
 ) -> None:
+    """Check min, max, and mean for every decodable compact numeric variable."""
     if parsed_metadata is None:
         pytest.skip("XML metadata not provided")
     metadata_files = sorted(parsed_metadata.files.values(), key=lambda file_desc: (file_desc.index, file_desc.id))

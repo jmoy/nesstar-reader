@@ -15,6 +15,8 @@ from .constants import (
 
 @dataclass(slots=True)
 class EmbeddedMetadataBlock:
+    """Decoded static-Huffman XML block and its source payload coordinates."""
+
     offset: int
     symbol_count: int
     output_length: int
@@ -26,6 +28,7 @@ class EmbeddedMetadataBlock:
 
     @property
     def xml_root_tag(self) -> str | None:
+        """Return the first XML element tag after the declaration, if present."""
         start = self.decoded_xml.find("<", 1)
         if start == -1:
             return None
@@ -37,12 +40,16 @@ class EmbeddedMetadataBlock:
 
 @dataclass(slots=True)
 class EmbeddedCategory:
+    """Categorical value label recovered from an embedded Categories block."""
+
     value: str
     label: str
 
 
 @dataclass(slots=True)
 class EmbeddedStatOptions:
+    """Boolean summary-stat flags exposed by an embedded ExtVarInf block."""
+
     min_enabled: bool
     max_enabled: bool
     mean_enabled: bool
@@ -53,6 +60,8 @@ class EmbeddedStatOptions:
 
 @dataclass(slots=True)
 class VariableEmbeddedMetadata:
+    """Resolved embedded XML and text metadata for one variable."""
+
     variable_name: str
     variable_id: int
     label: str
@@ -68,6 +77,8 @@ class VariableEmbeddedMetadata:
 
 @dataclass(slots=True)
 class DatasetEmbeddedMetadata:
+    """Resolved embedded metadata for one dataset inside the container."""
+
     dataset_number: int
     file_description_block: EmbeddedMetadataBlock
     file_name: str
@@ -78,12 +89,16 @@ class DatasetEmbeddedMetadata:
 
 @dataclass(slots=True)
 class EmbeddedTemplateReference:
+    """One manifest entry pointing to a plain XML template resource."""
+
     name: str
     record_id: int
 
 
 @dataclass(slots=True)
 class EmbeddedTemplateDocument:
+    """Plain XML template document resolved from the template manifest."""
+
     record_id: int
     name: str
     root_tag: str
@@ -96,6 +111,8 @@ class EmbeddedTemplateDocument:
 
 @dataclass(slots=True)
 class ParsedEmbeddedMetadata:
+    """Top-level embedded metadata view assembled from XML and text resources."""
+
     title: str
     document_id: str
     doc_description_block: EmbeddedMetadataBlock | None
@@ -105,14 +122,18 @@ class ParsedEmbeddedMetadata:
     datasets: list[DatasetEmbeddedMetadata]
 
     def dataset(self, dataset_number: int) -> DatasetEmbeddedMetadata:
+        """Return the embedded metadata object for a dataset number."""
         return next(ds for ds in self.datasets if ds.dataset_number == dataset_number)
 
     def variable(self, name: str) -> VariableEmbeddedMetadata:
+        """Return the first embedded variable metadata object with the given name."""
         return next(var for ds in self.datasets for var in ds.variables if var.variable_name == name)
 
 
 @dataclass(slots=True)
 class TrailingResourceIndexRecord:
+    """One resource-index row mapping a record id to payload bytes."""
+
     record_id: int
     target_offset: int
     length: int
@@ -120,6 +141,8 @@ class TrailingResourceIndexRecord:
 
 @dataclass(slots=True)
 class VariableDirectoryEntry:
+    """Parsed variable-directory entry describing storage for one column."""
+
     entry_index: int
     name: str
     width_value: int
@@ -133,16 +156,19 @@ class VariableDirectoryEntry:
 
     @property
     def is_binary_numeric(self) -> bool:
+        """Return whether the variable uses compact binary numeric storage."""
         return self.mode_code == 5
 
     @property
     def value_family(self) -> str | None:
+        """Map the NESSTAR value-format code to a decoder family name."""
         if not self.is_binary_numeric:
             return None
         return COMPACT_WIDTH_CODE_ENCODING_FAMILIES.get(self.value_format_code)
 
     @property
     def missing_value_code(self) -> int | float | None:
+        """Return the raw storage sentinel used for missing compact values."""
         family = self.value_family
         if family == "nibble-packed":
             return 0x0F
@@ -162,6 +188,7 @@ class VariableDirectoryEntry:
 
     @property
     def additive_offset(self) -> int | None:
+        """Return the signed bias applied to non-floating compact values."""
         if not self.is_binary_numeric:
             return None
         if self.value_family == "float64":
@@ -172,11 +199,13 @@ class VariableDirectoryEntry:
 
     @property
     def bytes_per_row_hint(self) -> Fraction | None:
+        """Return the physical byte width implied by the directory entry."""
         if not self.is_binary_numeric:
             return Fraction(self.width_value, 1)
         return COMPACT_WIDTH_CODE_PHYSICAL_WIDTHS.get(self.value_format_code)
 
     def physical_size(self, record_count: int) -> int | None:
+        """Return the encoded byte size for a variable with known row count."""
         width = self.bytes_per_row_hint
         if width is None:
             return None
@@ -190,6 +219,8 @@ class VariableDirectoryEntry:
 
 @dataclass(slots=True)
 class DatasetDescriptor:
+    """Parsed descriptor plus resolved directory and data-region details."""
+
     dataset_number: int
     variable_count: int
     row_count: int
@@ -204,6 +235,7 @@ class DatasetDescriptor:
     variables: list[VariableDirectoryEntry] = field(default_factory=list)
 
     def direct_data_size(self) -> int:
+        """Return the bytes occupied by direct string columns with known widths."""
         total = 0
         for variable in self.variables:
             if variable.is_binary_numeric:
@@ -218,12 +250,21 @@ class DatasetDescriptor:
         return total
 
     def compact_data_budget(self) -> int | None:
+        """Return the data-region bytes left after direct string columns."""
         if self.data_start_offset is None or self.data_end_offset is None:
             return None
         total = self.data_end_offset - self.data_start_offset + 1
         return total - self.direct_data_size()
 
     def reconcile_compact_physical_widths(self) -> dict[str, Fraction] | None:
+        """Infer compact widths when exactly one binary variable lacks a hint.
+
+        Modern files usually expose each variable payload through the trailing
+        resource index, so callers can use indexed lengths directly. This helper
+        remains useful for older hypotheses and tests that only have the total
+        dataset data region; it solves the one-unknown case from the remaining
+        byte budget.
+        """
         budget = self.compact_data_budget()
         if budget is None:
             return None
@@ -264,6 +305,14 @@ class DatasetDescriptor:
         return known
 
     def variable_offsets_hint(self) -> list[tuple[VariableDirectoryEntry, int, int]] | None:
+        """Return ordered ``(variable, start, size)`` payload spans for a dataset.
+
+        The implementation prefers exact offsets and lengths from the trailing
+        resource index because the recovered format documentation treats those
+        records as authoritative for variable payloads. The older sequential
+        width-based reconstruction is retained as a fallback for descriptors
+        that do not carry indexed spans.
+        """
         if self.data_start_offset is None:
             return None
 
@@ -327,6 +376,8 @@ class DatasetDescriptor:
 
 @dataclass(slots=True)
 class ParsedNesstarBinary:
+    """Parsed binary container layout without materialized column values."""
+
     path: Path
     file_size: int
     version_bytes: bytes

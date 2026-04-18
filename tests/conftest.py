@@ -1,3 +1,5 @@
+"""Shared pytest fixtures for real NESSTAR and optional DDI XML files."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,6 +16,7 @@ from ddi_metadata import DatasetMetadata, parse_ddi_xml
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register integration-test input file options."""
     parser.addoption(
         "--nesstar",
         action="store",
@@ -29,11 +32,13 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 @pytest.fixture(scope="session")
 def nesstar_path(pytestconfig: pytest.Config) -> Path:
+    """Return the required NESSTAR fixture path."""
     return Path(pytestconfig.getoption("nesstar")).resolve()
 
 
 @pytest.fixture(scope="session")
 def xml_path(pytestconfig: pytest.Config) -> Path | None:
+    """Return the optional external DDI XML metadata path."""
     value = pytestconfig.getoption("xml")
     if value is None:
         return None
@@ -42,11 +47,13 @@ def xml_path(pytestconfig: pytest.Config) -> Path | None:
 
 @pytest.fixture(scope="session")
 def parsed_binary(nesstar_path: Path) -> ParsedNesstarBinary:
+    """Parse the NESSTAR binary layout once per test session."""
     return parse_nesstar_binary(nesstar_path)
 
 
 @pytest.fixture(scope="session")
 def parsed_metadata(xml_path: Path | None) -> DatasetMetadata | None:
+    """Parse optional DDI XML metadata once per test session."""
     if xml_path is None:
         return None
     return parse_ddi_xml(xml_path)
@@ -54,9 +61,11 @@ def parsed_metadata(xml_path: Path | None) -> DatasetMetadata | None:
 
 @pytest.fixture(scope="session")
 def embedded_metadata(nesstar_path: Path) -> ParsedEmbeddedMetadata:
+    """Parse embedded NESSTAR metadata once per test session."""
     return parse_embedded_dataset_metadata(nesstar_path)
 
 
 @pytest.fixture(scope="session")
 def nesstar_bytes(nesstar_path: Path) -> bytes:
+    """Load the NESSTAR file bytes once per test session."""
     return nesstar_path.read_bytes()
