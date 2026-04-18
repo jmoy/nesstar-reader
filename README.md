@@ -1,6 +1,6 @@
 # nesstar-reader
 
-`nesstar-reader` is an open-source extractor for `.Nesstar` survey data containers. It reverse-engineers the binary NESSTAR/NSDstat format well enough to export the tested MoSPI datasets into delimited data files plus per-dataset JSON metadata, and the repository includes notes documenting the recovered format in [`nesstar_format.md`](/home/jmoy/code/nesstar-reader/nesstar_format.md).
+`nesstar-reader` is an open-source extractor for `.Nesstar` survey data containers. It reverse-engineers the binary NESSTAR/NSDstat format well enough to export the tested MoSPI datasets into delimited data files plus per-dataset JSON metadata, and the repository includes notes documenting the recovered format in [`nesstar_format.md`](nesstar_format.md).
 
 ## CLI
 
